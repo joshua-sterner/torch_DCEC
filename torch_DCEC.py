@@ -292,9 +292,7 @@ if __name__ == "__main__":
         # Transformations
         data_transforms = transforms.Compose([
                 transforms.Resize(img_size[0:2]),
-                # transforms.RandomHorizontalFlip(),
                 transforms.ToTensor(),
-                transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
             ])
 
         # Read data from selected folder and apply transformations
