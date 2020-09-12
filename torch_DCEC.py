@@ -235,21 +235,38 @@ if __name__ == "__main__":
     tmp = "Bias:\t" + str(args.bias)
     utils.print_both(f, tmp)
 
+    # MNIST-train, MNIST-test, MNIST-full use slightly modified torchvision MNIST class
+    import mnist
+
+    dataset_loaders = {}
+
+    dataset_loaders['MNIST-train'] = lambda: mnist.MNIST('../data', train=True, download=True,
+                                                         transform=transforms.Compose([
+                                                             transforms.ToTensor(),
+                                                             # transforms.Normalize((0.1307,), (0.3081,))
+                                                         ]))
+
+    dataset_loaders['MNIST-test'] = lambda: mnist.MNIST('../data', train=False, download=True,
+                                                        transform=transforms.Compose([
+                                                            transforms.ToTensor(),
+                                                            # transforms.Normalize((0.1307,), (0.3081,))
+                                                        ]))
+
+    dataset_loaders['MNIST-full'] = lambda: mnist.MNIST('../data', full=True, download=True,
+                                                        transform=transforms.Compose([
+                                                            transforms.ToTensor(),
+                                                            # transforms.Normalize((0.1307,), (0.3081,))
+                                                        ]))
+
     # Data preparation
-    if dataset == 'MNIST-train':
-        # Uses slightly modified torchvision MNIST class
-        import mnist
-        tmp = "\nData preparation\nReading data from: MNIST train dataset"
+    if dataset in dataset_loaders:
+        tmp = "\nData preparation\nReading data from: {} dataset".format(dataset)
         utils.print_both(f, tmp)
         img_size = [28, 28, 1]
         tmp = "Image size used:\t{0}x{1}".format(img_size[0], img_size[1])
         utils.print_both(f, tmp)
 
-        dataset = mnist.MNIST('../data', train=True, download=True,
-                              transform=transforms.Compose([
-                                                           transforms.ToTensor(),
-                                                           # transforms.Normalize((0.1307,), (0.3081,))
-                                                           ]))
+        dataset = dataset_loaders[dataset]()
 
         dataloader = torch.utils.data.DataLoader(dataset,
             batch_size=batch, shuffle=False, num_workers=workers)
@@ -257,49 +274,6 @@ if __name__ == "__main__":
         dataset_size = len(dataset)
         tmp = "Training set size:\t" + str(dataset_size)
         utils.print_both(f, tmp)
-
-    elif dataset == 'MNIST-test':
-        import mnist
-        tmp = "\nData preparation\nReading data from: MNIST test dataset"
-        utils.print_both(f, tmp)
-        img_size = [28, 28, 1]
-        tmp = "Image size used:\t{0}x{1}".format(img_size[0], img_size[1])
-        utils.print_both(f, tmp)
-
-        dataset = mnist.MNIST('../data', train=False, download=True,
-                              transform=transforms.Compose([
-                                  transforms.ToTensor(),
-                                  # transforms.Normalize((0.1307,), (0.3081,))
-                              ]))
-
-        dataloader = torch.utils.data.DataLoader(dataset,
-                                                 batch_size=batch, shuffle=False, num_workers=workers)
-
-        dataset_size = len(dataset)
-        tmp = "Training set size:\t" + str(dataset_size)
-        utils.print_both(f, tmp)
-
-    elif dataset == 'MNIST-full':
-        import mnist
-        tmp = "\nData preparation\nReading data from: MNIST full dataset"
-        utils.print_both(f, tmp)
-        img_size = [28, 28, 1]
-        tmp = "Image size used:\t{0}x{1}".format(img_size[0], img_size[1])
-        utils.print_both(f, tmp)
-
-        dataset = mnist.MNIST('../data', full=True, download=True,
-                               transform=transforms.Compose([
-                                   transforms.ToTensor(),
-                                   # transforms.Normalize((0.1307,), (0.3081,))
-                               ]))
-
-        dataloader = torch.utils.data.DataLoader(dataset,
-                                                 batch_size=batch, shuffle=False, num_workers=workers)
-
-        dataset_size = len(dataset)
-        tmp = "Training set size:\t" + str(dataset_size)
-        utils.print_both(f, tmp)
-
     else:
         # Data folder
         data_dir = args.dataset_path
