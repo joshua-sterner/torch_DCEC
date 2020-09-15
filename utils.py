@@ -14,8 +14,6 @@ inv_normalize = transforms.Normalize(
 # Simple tensor to image translation
 def tensor2img(tensor):
     img = tensor.cpu().data[0]
-    if img.shape[0] != 1:
-        img = inv_normalize(img)
     img = torch.clamp(img, 0, 1)
     return img
 
