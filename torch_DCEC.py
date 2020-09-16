@@ -58,6 +58,7 @@ if __name__ == "__main__":
     parser.add_argument('--neg_slope', default=0.01, type=float)
     parser.add_argument('--activations', default=False, type=str2bool)
     parser.add_argument('--bias', default=True, type=str2bool)
+    parser.add_argument('--device', default="", type=str, help='Device to perform computations on. Expects "cpu" or "cuda:n" where n is a zero-indexed gpu identifier.')
     args = parser.parse_args()
     print(args)
 
@@ -310,6 +311,14 @@ if __name__ == "__main__":
 
     # GPU check
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    if (args.device != ''):
+        if (args.device.startswith('cuda:')):
+            if (int(args.device[5:]) >= torch.cuda.device_count()):
+                raise Exception('Unable to use device: {}'.format(args.device))
+        elif (args.device != 'cpu'):
+            raise Exception('Unrecognized device: {}'.format(args.device))
+        device = torch.device(args.device)
+
     tmp = "\nPerforming calculations on:\t" + str(device)
     utils.print_both(f, tmp + '\n')
     params['device'] = device
