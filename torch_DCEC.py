@@ -58,7 +58,9 @@ if __name__ == "__main__":
     parser.add_argument('--neg_slope', default=0.01, type=float)
     parser.add_argument('--activations', default=False, type=str2bool)
     parser.add_argument('--bias', default=True, type=str2bool)
-    parser.add_argument('--device', default="", type=str, help='Device to perform computations on. Expects "cpu" or "cuda:n" where n is a zero-indexed gpu identifier.')
+    parser.add_argument('--device', default='', type=str, help='Device to perform computations on. Expects "cpu" or "cuda:n" where n is a zero-indexed gpu identifier.')
+    parser.add_argument('--output_name', default='', type=str, help='The name to use for the output files.')
+    parser.add_argument('--output_dir', default='', type=str, help='The directory in which to save the output. The directories runs, reports, and nets will be created here if they do not already exist.')
     args = parser.parse_args()
     print(args)
 
@@ -83,6 +85,8 @@ if __name__ == "__main__":
     # Directories
     # Create directories structure
     dirs = ['runs', 'reports', 'nets']
+    if (args.output_dir != ''):
+        dirs = [os.path.join(args.output_dir, x) for x in dirs]
     list(map(lambda x: os.makedirs(x, exist_ok=True), dirs))
 
     # Net architecture
@@ -103,19 +107,32 @@ if __name__ == "__main__":
 
     # Base filename
     name = model_name + '_' + str(idx).zfill(3)
+    if (args.output_name != ''):
+        name = args.output_name
 
     # Filenames for report and weights
     name_txt = name + '.txt'
-    name_net = name
+    name_net = name + '.pt'
     pretrained = name + '_pretrained.pt'
 
     # Arrange filenames for report, network weights, pretrained network weights
     name_txt = os.path.join('reports', name_txt)
     name_net = os.path.join('nets', name_net)
+    if (args.output_dir != ''):
+        name_txt = os.path.join(args.output_dir, name_txt)
+        name_net = os.path.join(args.output_dir, name_net)
+    if (os.path.exists(name_txt)):
+        raise Exception('Output file {} already exists.'.format(name_txt))
+    if (os.path.exists(name_net)):
+        raise Exception('Output file {} already exists.'.format(name_net))
     if net_is_path and not pretrain:
         pretrained = args.pretrained_net
     else:
         pretrained = os.path.join('nets', pretrained)
+        if (args.output_dir != ''):
+            pretrained = os.path.join(args.output_dir, pretrained)
+        if (os.path.exists(pretrained)):
+            raise Exception('Output file {} already exists.'.format(pretrained))
     if not pretrain and not os.path.isfile(pretrained):
         print("No pretrained weights, try again choosing pretrained network or create new with pretrain=True")
 
@@ -129,15 +146,22 @@ if __name__ == "__main__":
         f = open(name_txt, 'a')
     params['txt_file'] = f
 
+    tensorboard_output = os.path.join('runs', name)
     # Delete tensorboard entry if exist (not to overlap as the charts become unreadable)
-    try:
-        os.system("rm -rf runs/" + name)
-    except:
-        pass
+    if (args.output_name == ''):
+        try:
+            os.system("rm -rf runs/" + name)
+        except:
+            pass
+    else:
+        if (args.output_dir != ''):
+            tensorboard_output = os.path.join(args.output_dir, 'runs', name)
+        if os.path.exists(tensorboard_output):
+            raise Exception('Output file {} already exists.'.format(tensorboard_output))
 
     # Initialize tensorboard writer
     if board:
-        writer = SummaryWriter('runs/' + name)
+        writer = SummaryWriter(tensorboard_output)
         params['writer'] = writer
     else:
         params['writer'] = None
@@ -356,7 +380,7 @@ if __name__ == "__main__":
         model = training_functions.pretraining(model, dataloader, criteria[0], optimizers[1], schedulers[1], epochs, params)
 
     # Save final model
-    torch.save(model.state_dict(), name_net + '.pt')
+    torch.save(model.state_dict(), name_net)
 
     # Close files
     f.close()
