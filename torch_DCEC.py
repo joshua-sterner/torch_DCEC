@@ -14,7 +14,7 @@ if __name__ == "__main__":
     import nets
     import utils
     import training_functions
-    from torch.utils.tensorboard import SummaryWriter
+    from tensorboardX import SummaryWriter
 
     # Translate string entries to bool for parser
     def str2bool(v):
@@ -61,6 +61,8 @@ if __name__ == "__main__":
     parser.add_argument('--device', default='', type=str, help='Device to perform computations on. Expects "cpu" or "cuda:n" where n is a zero-indexed gpu identifier.')
     parser.add_argument('--output_name', default='', type=str, help='The name to use for the output files.')
     parser.add_argument('--output_dir', default='', type=str, help='The directory in which to save the output. The directories runs, reports, and nets will be created here if they do not already exist.')
+    parser.add_argument('--save_embedding_inputs', default=True, type=str2bool, help='Save input images in tensorboard embeddings.')
+    parser.add_argument('--save_embedding_interval', default=1, type=int, help='How frequently to save the tensorboard embeddings. Embeddings will be saved every SAVE_EMBEDDING_INTERVAL epochs, before the first epoch, and after the last epoch.')
     args = parser.parse_args()
     print(args)
 
@@ -81,6 +83,8 @@ if __name__ == "__main__":
         except:
             pass
     params = {'pretrain': pretrain}
+    params['save_embedding_inputs'] = args.save_embedding_inputs
+    params['embedding_interval'] = args.save_embedding_interval
 
     # Directories
     # Create directories structure

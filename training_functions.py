@@ -4,6 +4,7 @@ import torch
 import numpy as np
 import copy
 from sklearn.cluster import KMeans
+import math
 
 
 # Training function (from my torch_DCEC implementation, kept for completeness)
@@ -59,7 +60,10 @@ def train_model(model, dataloader, criteria, optimizers, schedulers, num_epochs,
 
     # Initial target distribution
     utils.print_both(txt_file, '\nUpdating target distribution')
-    output_distribution, labels, preds_prev = calculate_predictions(model, copy.deepcopy(dl), params)
+    output_distribution, labels, preds_prev, embedding, label_img = calculate_predictions(model, copy.deepcopy(dl), params)
+    if board:
+        writer.add_embedding(embedding, metadata=labels, global_step=0, label_img=label_img, tag='embedding_layer')
+        writer.add_embedding(output_distribution, metadata=labels, global_step=0, label_img=label_img, tag='clustering_output')
     target_distribution = target(output_distribution)
     nmi = utils.metrics.nmi(labels, preds_prev)
     ari = utils.metrics.ari(labels, preds_prev)
@@ -96,14 +100,18 @@ def train_model(model, dataloader, criteria, optimizers, schedulers, num_epochs,
         # Iterate over data.
         for data in dataloader:
             # Get the inputs and labels
-            inputs, _ = data
+            inputs, provided_labels = data
 
             inputs = inputs.to(device)
 
             # Uptade target distribution, chack and print performance
             if (batch_num - 1) % update_interval == 0 and not (batch_num == 1 and epoch == 0):
                 utils.print_both(txt_file, '\nUpdating target distribution:')
-                output_distribution, labels, preds = calculate_predictions(model, dataloader, params)
+                output_distribution, labels, preds, embedding, label_img = calculate_predictions(model, dataloader, params)
+                if (board and batch_num == 1 and epoch % params['embedding_interval'] == 0):
+                    writer.add_embedding(embedding, metadata=labels, global_step=epoch, label_img=label_img, tag='embedding_layer')
+                    writer.add_embedding(output_distribution, metadata=labels, global_step=epoch, label_img=label_img, tag='clustering_output')
+
                 target_distribution = target(output_distribution)
                 nmi = utils.metrics.nmi(labels, preds)
                 ari = utils.metrics.ari(labels, preds)
@@ -203,6 +211,23 @@ def train_model(model, dataloader, criteria, optimizers, schedulers, num_epochs,
             best_model_wts = copy.deepcopy(model.state_dict())
 
         utils.print_both(txt_file, '')
+
+    model.eval()
+    output_distribution, labels, preds, embedding, label_img = calculate_predictions(model, dataloader, params)
+    nmi = utils.metrics.nmi(labels, preds)
+    ari = utils.metrics.ari(labels, preds)
+    acc = utils.metrics.acc(labels, preds)
+    utils.print_both(txt_file,
+                     'NMI: {0:.5f}\tARI: {1:.5f}\tAcc {2:.5f}\t'.format(nmi, ari, acc))
+    if board:
+        writer.add_embedding(embedding, metadata=labels, global_step=num_epochs, label_img=label_img, tag='embedding_layer')
+        writer.add_embedding(output_distribution, metadata=labels, global_step=num_epochs, label_img=label_img, tag='clustering_output')
+        niter = update_iter
+        writer.add_scalar('/NMI', nmi, niter)
+        writer.add_scalar('/ARI', ari, niter)
+        writer.add_scalar('/Acc', acc, niter)
+        update_iter += 1
+
 
     time_elapsed = time.time() - since
     utils.print_both(txt_file, 'Training complete in {:.0f}m {:.0f}s'.format(
@@ -341,28 +366,39 @@ def kmeans(model, dataloader, params):
     model.clustering.set_weight(weights.to(params['device']))
     # torch.cuda.empty_cache()
 
+def can_use_label_img(inputs, data_loader):
+    if (inputs.size()[2] != inputs.size()[3]):
+        return False # label images must be square
+    # sqrt(num_images)*width must be <= 8192 according to tensorboardX documentation
+    return math.sqrt(len(data_loader)*inputs.size()[2]*inputs.size()[2]) <= 8192
 
 # Function forwarding data through network, collecting clustering weight output and returning prediciotns and labels
 def calculate_predictions(model, dataloader, params):
     output_array = None
     label_array = None
+    embedding_array = None
+    label_img = None
+    use_label_img = params['save_embedding_inputs']
     model.eval()
     for data in dataloader:
         inputs, labels = data
         inputs = inputs.to(params['device'])
         labels = labels.to(params['device'])
-        _, outputs, _ = model(inputs)
+        _, outputs, embedding = model(inputs)
         if output_array is not None:
             output_array = np.concatenate((output_array, outputs.cpu().detach().numpy()), 0)
             label_array = np.concatenate((label_array, labels.cpu().detach().numpy()), 0)
+            embedding_array = np.concatenate((embedding_array, embedding.cpu().detach().numpy()), 0)
+            if use_label_img and can_use_label_img(inputs, dataloader):
+                label_img = np.concatenate((label_img, inputs.cpu().detach().numpy()), 0)
         else:
             output_array = outputs.cpu().detach().numpy()
             label_array = labels.cpu().detach().numpy()
-
+            embedding_array = embedding.cpu().detach().numpy()
+            if use_label_img and can_use_label_img(inputs, dataloader):
+                label_img = inputs.cpu().detach().numpy()
     preds = np.argmax(output_array.data, axis=1)
-    # print(output_array.shape)
-    return output_array, label_array, preds
-
+    return output_array, label_array, preds, embedding_array, label_img
 
 # Calculate target distribution
 def target(out_distr):
