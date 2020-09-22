@@ -79,13 +79,13 @@ class CAE_3(nn.Module):
             x = self.sig(x)
         else:
             x = self.relu3_1(x)
-        x = x.view(x.size(0), -1)
+        x = x.view(x.shape[0], -1)
         x = self.embedding(x)
         extra_out = x
         clustering_out = self.clustering(x)
         x = self.deembedding(x)
         x = self.relu1_2(x)
-        x = x.view(x.size(0), self.filters[2], ((self.input_shape[0]//2//2-1) // 2), ((self.input_shape[0]//2//2-1) // 2))
+        x = x.view(x.shape[0], self.filters[2], ((self.input_shape[0]//2//2-1) // 2), ((self.input_shape[0]//2//2-1) // 2))
         x = self.deconv3(x)
         x = self.relu2_2(x)
         x = self.deconv2(x)
