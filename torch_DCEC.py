@@ -97,7 +97,7 @@ if __name__ == "__main__":
     model_name = args.net_architecture
     # Indexing (for automated reports saving) - allows to run many trainings and get all the reports collected
     if pretrain or (not pretrain and net_is_path):
-        reports_list = sorted(os.listdir('reports'), reverse=True)
+        reports_list = sorted(os.listdir(os.path.join(args.output_dir, 'reports')), reverse=True)
         if reports_list:
             for file in reports_list:
                 # print(file)
@@ -151,18 +151,10 @@ if __name__ == "__main__":
     params['txt_file'] = f
 
     tensorboard_output = os.path.join('runs', name)
-    # Delete tensorboard entry if exist (not to overlap as the charts become unreadable)
-    if (args.output_name == ''):
-        try:
-            os.system("rm -rf runs/" + name)
-        except:
-            pass
-    else:
-        if (args.output_dir != ''):
-            tensorboard_output = os.path.join(args.output_dir, 'runs', name)
-        if os.path.exists(tensorboard_output):
-            raise Exception('Output file {} already exists.'.format(tensorboard_output))
-
+    if (args.output_dir != ''):
+        tensorboard_output = os.path.join(args.output_dir, 'runs', name)
+    if os.path.exists(tensorboard_output):
+        raise Exception('Output file {} already exists.'.format(tensorboard_output))
     # Initialize tensorboard writer
     if board:
         writer = SummaryWriter(tensorboard_output)
