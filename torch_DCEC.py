@@ -1,5 +1,11 @@
 from __future__ import print_function, division
 
+class ToRGB:
+    def __call__(self, tensor):
+        if tensor.shape[0] != 1:
+            raise Exception('ToRGB expects a single-channel input.')
+        return torch.cat((tensor, tensor, tensor))
+
 if __name__ == "__main__":
 
     import argparse
@@ -63,6 +69,7 @@ if __name__ == "__main__":
     parser.add_argument('--output_dir', default='', type=str, help='The directory in which to save the output. The directories runs, reports, and nets will be created here if they do not already exist.')
     parser.add_argument('--save_embedding_inputs', default=True, type=str2bool, help='Save input images in tensorboard embeddings.')
     parser.add_argument('--save_embedding_interval', default=1, type=int, help='How frequently to save the tensorboard embeddings. Embeddings will be saved every SAVE_EMBEDDING_INTERVAL epochs, before the first epoch, and after the last epoch.')
+    parser.add_argument('--rgb_mnist', default=False, type=str2bool, help='Use three channels (RGB) for MNIST dataset instead of one.')
     args = parser.parse_args()
     print(args)
 
@@ -261,30 +268,28 @@ if __name__ == "__main__":
 
     dataset_loaders = {}
 
+    mnist_transforms = [transforms.ToTensor()]
+    if args.rgb_mnist:
+        mnist_transforms.append(ToRGB())
+    mnist_transforms = transforms.Compose(mnist_transforms)
+
     dataset_loaders['MNIST-train'] = lambda: mnist.MNIST('../data', train=True, download=True,
-                                                         transform=transforms.Compose([
-                                                             transforms.ToTensor(),
-                                                             # transforms.Normalize((0.1307,), (0.3081,))
-                                                         ]))
+                                                         transform=mnist_transforms)
 
     dataset_loaders['MNIST-test'] = lambda: mnist.MNIST('../data', train=False, download=True,
-                                                        transform=transforms.Compose([
-                                                            transforms.ToTensor(),
-                                                            # transforms.Normalize((0.1307,), (0.3081,))
-                                                        ]))
+                                                        transform=mnist_transforms)
 
     dataset_loaders['MNIST-full'] = lambda: mnist.MNIST('../data', full=True, download=True,
-                                                        transform=transforms.Compose([
-                                                            transforms.ToTensor(),
-                                                            # transforms.Normalize((0.1307,), (0.3081,))
-                                                        ]))
+                                                        transform=mnist_transforms)
 
     # Data preparation
     if dataset in dataset_loaders:
         tmp = "\nData preparation\nReading data from: {} dataset".format(dataset)
         utils.print_both(f, tmp)
         img_size = [28, 28, 1]
-        tmp = "Image size used:\t{0}x{1}".format(img_size[0], img_size[1])
+        if (args.rgb_mnist):
+            img_size[2] = 3
+        tmp = "Image size used:\t{0}x{1}x{2}".format(img_size[0], img_size[1], img_size[2])
         utils.print_both(f, tmp)
 
         dataset = dataset_loaders[dataset]()
