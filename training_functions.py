@@ -4,6 +4,7 @@ import torch
 import numpy as np
 import copy
 from sklearn.cluster import KMeans
+from sklearn.mixture import GaussianMixture
 import math
 
 
@@ -49,8 +50,14 @@ def train_model(model, dataloader, criteria, optimizers, schedulers, num_epochs,
             print("Couldn't load pretrained weights")
 
     # Initialise clusters
-    utils.print_both(txt_file, '\nInitializing cluster centers based on K-means')
-    kmeans(model, copy.deepcopy(dl), params)
+    if params['cluster_init_method'] == 'gmm':
+        utils.print_both(txt_file, '\nInitializing cluster centers based on GMM')
+        gmm(model, copy.deepcopy(dl), params)
+    elif params['cluster_init_method'] == 'kmeans':
+        utils.print_both(txt_file, '\nInitializing cluster centers based on K-means')
+        kmeans(model, copy.deepcopy(dl), params)
+    else:
+        raise Exception('Unrecognized cluster_init_method: {}'.format(params['cluster_init_method']))
 
     utils.print_both(txt_file, '\nBegin clusters training')
 
@@ -342,9 +349,7 @@ def pretraining(model, dataloader, criterion, optimizer, scheduler, num_epochs, 
     return model
 
 
-# K-means clusters initialisation
-def kmeans(model, dataloader, params):
-    km = KMeans(n_clusters=model.num_clusters, n_init=20)
+def embedded_outputs(model, dataloader, params, threshold=50000):
     output_array = None
     model.eval()
     # Itarate throught the data and concatenate the latent space representations of images
@@ -357,14 +362,25 @@ def kmeans(model, dataloader, params):
         else:
             output_array = outputs.cpu().detach().numpy()
         # print(output_array.shape)
-        if output_array.shape[0] > 50000: break
+        if threshold is not None and output_array.shape[0] > threshold: break
+    return output_array
 
+# K-means clusters initialisation
+def kmeans(model, dataloader, params):
+    km = KMeans(n_clusters=model.num_clusters, n_init=20)
     # Perform K-means
-    km.fit_predict(output_array)
+    km.fit_predict(embedded_outputs(model, dataloader, params))
     # Update clustering layer weights
     weights = torch.from_numpy(km.cluster_centers_)
     model.clustering.set_weight(weights.to(params['device']))
     # torch.cuda.empty_cache()
+
+def gmm(model, dataloader, params):
+    gm = GaussianMixture(n_components=model.num_clusters, covariance_type=params['gmm_covariance_type'],
+                         tol=params['gmm_tol'], max_iter=params['gmm_max_iter'])
+    gm.fit_predict(embedded_outputs(model, dataloader, params))
+    weights = torch.from_numpy(gm.means_)
+    model.clustering.set_weight(weights.to(params['device']))
 
 def can_use_label_img(inputs, data_loader):
     if (inputs.size()[2] != inputs.size()[3]):

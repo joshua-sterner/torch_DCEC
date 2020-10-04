@@ -70,6 +70,10 @@ if __name__ == "__main__":
     parser.add_argument('--save_embedding_inputs', default=True, type=str2bool, help='Save input images in tensorboard embeddings.')
     parser.add_argument('--save_embedding_interval', default=1, type=int, help='How frequently to save the tensorboard embeddings. Embeddings will be saved every SAVE_EMBEDDING_INTERVAL epochs, before the first epoch, and after the last epoch.')
     parser.add_argument('--rgb_mnist', default=False, type=str2bool, help='Use three channels (RGB) for MNIST dataset instead of one.')
+    parser.add_argument('--cluster_init_method', default='kmeans', choices=['kmeans', 'gmm'], help='Which clustering method to use to initialize the cluster centers at the beginning of the full training step.')
+    parser.add_argument('--gmm_covariance_type', default='full', choices=['full', 'tied', 'diag', 'spherical'])
+    parser.add_argument('--gmm_tol', default=1e-3, type=float)
+    parser.add_argument('--gmm_max_iter', default=100, type=int)
     args = parser.parse_args()
     print(args)
 
@@ -92,6 +96,10 @@ if __name__ == "__main__":
     params = {'pretrain': pretrain}
     params['save_embedding_inputs'] = args.save_embedding_inputs
     params['embedding_interval'] = args.save_embedding_interval
+    params['gmm_covariance_type'] = args.gmm_covariance_type
+    params['gmm_tol'] = args.gmm_tol
+    params['gmm_max_iter'] = args.gmm_max_iter
+    params['cluster_init_method'] = args.cluster_init_method
 
     # Directories
     # Create directories structure
