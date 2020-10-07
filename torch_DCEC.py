@@ -32,7 +32,7 @@ if __name__ == "__main__":
             raise argparse.ArgumentTypeError('Boolean value expected.')
 
     parser = argparse.ArgumentParser(description='Use DCEC for clustering')
-    parser.add_argument('--mode', default='train_full', choices=['train_full', 'pretrain'], help='mode')
+    parser.add_argument('--mode', default='train_full', choices=['train_full', 'pretrain', 'init_clusters'], help='mode')
     parser.add_argument('--tensorboard', default=True, type=bool, help='export training stats to tensorboard')
     parser.add_argument('--pretrain', default=True, type=str2bool, help='perform autoencoder pretraining')
     parser.add_argument('--pretrained_net', default=1, help='index or path of pretrained net')
@@ -74,6 +74,7 @@ if __name__ == "__main__":
     parser.add_argument('--gmm_covariance_type', default='full', choices=['full', 'tied', 'diag', 'spherical'])
     parser.add_argument('--gmm_tol', default=1e-3, type=float)
     parser.add_argument('--gmm_max_iter', default=100, type=int)
+    parser.add_argument('--train_init_clusters', default=False, type=str2bool, help='Initialize cluster centers at beginning of full training stage.')
     args = parser.parse_args()
     print(args)
 
@@ -100,6 +101,7 @@ if __name__ == "__main__":
     params['gmm_tol'] = args.gmm_tol
     params['gmm_max_iter'] = args.gmm_max_iter
     params['cluster_init_method'] = args.cluster_init_method
+    params['train_init_clusters'] = args.train_init_clusters
 
     # Directories
     # Create directories structure
@@ -383,13 +385,20 @@ if __name__ == "__main__":
 
     schedulers = [scheduler, scheduler_pretrain]
 
+    utils.print_both(f, 'Mode: {}\n'.format(args.mode))
+    
     if args.mode == 'train_full':
         model = training_functions.train_model(model, dataloader, criteria, optimizers, schedulers, epochs, params)
     elif args.mode == 'pretrain':
         model = training_functions.pretraining(model, dataloader, criteria[0], optimizers[1], schedulers[1], epochs, params)
+        training_functions.init_clusters(f, model, dataloader, params)
+    elif args.mode == 'init_clusters':
+        model.load_state_dict(torch.load(args.pretrained_net))
+        training_functions.init_clusters(f, model, dataloader, params)
 
     # Save final model
     torch.save(model.state_dict(), name_net)
+    print('Saved model to {}'.format(name_net))
 
     # Close files
     f.close()

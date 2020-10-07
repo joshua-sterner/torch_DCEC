@@ -50,15 +50,8 @@ def train_model(model, dataloader, criteria, optimizers, schedulers, num_epochs,
             print("Couldn't load pretrained weights")
 
     # Initialise clusters
-    if params['cluster_init_method'] == 'gmm':
-        utils.print_both(txt_file, '\nInitializing cluster centers based on GMM')
-        gmm(model, copy.deepcopy(dl), params)
-    elif params['cluster_init_method'] == 'kmeans':
-        utils.print_both(txt_file, '\nInitializing cluster centers based on K-means')
-        kmeans(model, copy.deepcopy(dl), params)
-    else:
-        raise Exception('Unrecognized cluster_init_method: {}'.format(params['cluster_init_method']))
-
+    if params['train_init_clusters'] or pretrain:
+        init_clusters(txt_file, model, dl, params)
     utils.print_both(txt_file, '\nBegin clusters training')
 
     # Prep variables for weights and accuracy of the best model
@@ -421,3 +414,13 @@ def target(out_distr):
     tar_dist = out_distr ** 2 / np.sum(out_distr, axis=0)
     tar_dist = np.transpose(np.transpose(tar_dist) / np.sum(tar_dist, axis=1))
     return tar_dist
+
+def init_clusters(txt_file, model, dl, params):
+    if params['cluster_init_method'] == 'gmm':
+        utils.print_both(txt_file, '\nInitializing cluster centers based on GMM')
+        gmm(model, copy.deepcopy(dl), params)
+    elif params['cluster_init_method'] == 'kmeans':
+        utils.print_both(txt_file, '\nInitializing cluster centers based on K-means')
+        kmeans(model, copy.deepcopy(dl), params)
+    else:
+        raise Exception('Unrecognized cluster_init_method: {}'.format(params['cluster_init_method']))
