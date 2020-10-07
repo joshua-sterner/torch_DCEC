@@ -38,7 +38,7 @@ if __name__ == "__main__":
     parser.add_argument('--pretrained_net', default=1, help='index or path of pretrained net')
     parser.add_argument('--net_architecture', default='CAE_3', choices=['CAE_3', 'CAE_bn3', 'CAE_4', 'CAE_bn4', 'CAE_5', 'CAE_bn5'], help='network architecture used')
     parser.add_argument('--dataset', default='MNIST-train',
-                        choices=['MNIST-train', 'custom', 'MNIST-test', 'MNIST-full'],
+                        choices=['MNIST-train', 'custom', 'MNIST-test', 'MNIST-full', 'USPS-train', 'USPS-test'],
                         help='custom or prepared dataset')
     parser.add_argument('--dataset_path', default='data', help='path to dataset')
     parser.add_argument('--batch_size', default=256, type=int, help='batch size')
@@ -75,6 +75,7 @@ if __name__ == "__main__":
     parser.add_argument('--gmm_tol', default=1e-3, type=float)
     parser.add_argument('--gmm_max_iter', default=100, type=int)
     parser.add_argument('--train_init_clusters', default=False, type=str2bool, help='Initialize cluster centers at beginning of full training stage.')
+    parser.add_argument('--usps_location', default='', type=str, help='The location in which usps_train.jf and usps_test.jf can be found.')
     args = parser.parse_args()
     print(args)
 
@@ -275,6 +276,7 @@ if __name__ == "__main__":
 
     # MNIST-train, MNIST-test, MNIST-full use slightly modified torchvision MNIST class
     import mnist
+    import usps
 
     dataset_loaders = {}
 
@@ -291,18 +293,22 @@ if __name__ == "__main__":
 
     dataset_loaders['MNIST-full'] = lambda: mnist.MNIST('../data', full=True, download=True,
                                                         transform=mnist_transforms)
+    dataset_loaders['USPS-train'] = lambda: usps.USPS(args.usps_location, 'train',
+                                                        transform=mnist_transforms)
+    dataset_loaders['USPS-test'] = lambda: usps.USPS(args.usps_location, 'test',
+                                                        transform=mnist_transforms)
 
     # Data preparation
     if dataset in dataset_loaders:
         tmp = "\nData preparation\nReading data from: {} dataset".format(dataset)
         utils.print_both(f, tmp)
-        img_size = [28, 28, 1]
+        dataset = dataset_loaders[dataset]()
+        img_size = dataset.image_size
         if (args.rgb_mnist):
             img_size[2] = 3
         tmp = "Image size used:\t{0}x{1}x{2}".format(img_size[0], img_size[1], img_size[2])
         utils.print_both(f, tmp)
 
-        dataset = dataset_loaders[dataset]()
 
         dataloader = torch.utils.data.DataLoader(dataset,
             batch_size=batch, shuffle=False, num_workers=workers)
