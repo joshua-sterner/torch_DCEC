@@ -262,7 +262,6 @@ def pretraining(model, dataloader, criterion, optimizer, scheduler, num_epochs, 
         utils.print_both(txt_file, 'Pretraining:\tEpoch {}/{}'.format(epoch + 1, num_epochs))
         utils.print_both(txt_file, '-' * 10)
 
-        scheduler.step()
         model.train(True)  # Set model to training mode
 
         running_loss = 0.0
@@ -311,6 +310,8 @@ def pretraining(model, dataloader, criterion, optimizer, scheduler, num_epochs, 
                     img = np.concatenate((inp, out), axis=1)
                     writer.add_image('Pretraining/Epoch_' + str(epoch + 1).zfill(3) + '/Sample_' + str(img_counter).zfill(2), img)
                     img_counter += 1
+
+        scheduler.step()
 
         epoch_loss = running_loss / dataset_size
         if epoch == 0: first_loss = epoch_loss
