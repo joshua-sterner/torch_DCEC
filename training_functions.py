@@ -82,6 +82,10 @@ def train_model(model, dataloader, criteria, optimizers, schedulers, num_epochs,
 
     # Go through all epochs
     for epoch in range(num_epochs):
+        if epoch < params['zero_gamma_epochs']:
+            gamma = 0
+        else:
+            gamma = params['gamma']
 
         utils.print_both(txt_file, 'Epoch {}/{}'.format(epoch + 1, num_epochs))
         utils.print_both(txt_file,  '-' * 10)
@@ -145,8 +149,8 @@ def train_model(model, dataloader, criteria, optimizers, schedulers, num_epochs,
             with torch.set_grad_enabled(True):
                 outputs, clusters, _ = model(inputs)
                 loss_rec = criteria[0](outputs, inputs)
-                loss_clust = gamma *criteria[1](torch.log(clusters), tar_dist) / batch
-                loss = loss_rec + loss_clust
+                loss_clust = criteria[1](torch.log(clusters), tar_dist) / batch
+                loss = (1-gamma)*loss_rec + gamma*loss_clust
                 loss.backward()
                 optimizers[0].step()
 

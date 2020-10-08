@@ -76,6 +76,7 @@ if __name__ == "__main__":
     parser.add_argument('--gmm_max_iter', default=100, type=int)
     parser.add_argument('--train_init_clusters', default=False, type=str2bool, help='Initialize cluster centers at beginning of full training stage.')
     parser.add_argument('--usps_location', default='', type=str, help='The location in which usps_train.jf and usps_test.jf can be found.')
+    parser.add_argument('--zero_gamma_epochs', default=5, type=int, help='Sets gamma to zero for the first N epochs during the training stage.')
     args = parser.parse_args()
     print(args)
 
@@ -103,6 +104,7 @@ if __name__ == "__main__":
     params['gmm_max_iter'] = args.gmm_max_iter
     params['cluster_init_method'] = args.cluster_init_method
     params['train_init_clusters'] = args.train_init_clusters
+    params['zero_gamma_epochs'] = args.zero_gamma_epochs
 
     # Directories
     # Create directories structure
