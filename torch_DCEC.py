@@ -276,6 +276,9 @@ if __name__ == "__main__":
     tmp = "Bias:\t" + str(args.bias)
     utils.print_both(f, tmp)
 
+    utils.print_both(f, '\nargs: ' + str(args)+'\n')
+
+
     # MNIST-train, MNIST-test, MNIST-full use slightly modified torchvision MNIST class
     import mnist
     import usps
