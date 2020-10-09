@@ -150,7 +150,7 @@ def train_model(model, dataloader, criteria, optimizers, schedulers, num_epochs,
                 outputs, clusters, _ = model(inputs)
                 loss_rec = criteria[0](outputs, inputs)
                 loss_clust = criteria[1](torch.log(clusters), tar_dist) / batch
-                loss = (1-gamma)*loss_rec + gamma*loss_clust
+                loss = loss_rec + gamma*loss_clust
                 loss.backward()
                 optimizers[0].step()
 
