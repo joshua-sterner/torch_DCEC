@@ -34,8 +34,9 @@ class ClusterlingLayer(nn.Module):
 
 # Convolutional autoencoder directly from DCEC article
 class CAE_3(nn.Module):
-    def __init__(self, input_shape=[128,128,3], num_clusters=10, filters=[32, 64, 128], leaky=True, neg_slope=0.01, activations=False, bias=True):
+    def __init__(self, input_shape=[128,128,3], num_clusters=10, filters=[32, 64, 128], leaky=True, neg_slope=0.01, activations=False, bias=True, l2_norm=True):
         super(CAE_3, self).__init__()
+        self.l2_norm = l2_norm
         self.activations = activations
         # bias = True
         self.pretrained = False
@@ -80,6 +81,8 @@ class CAE_3(nn.Module):
         else:
             x = self.relu3_1(x)
         x = x.view(x.shape[0], -1)
+        if self.l2_norm:
+            x = F.normalize(x, p=2, dim=1)
         x = self.embedding(x)
         extra_out = x
         clustering_out = self.clustering(x)
@@ -98,8 +101,9 @@ class CAE_3(nn.Module):
 
 # Convolutional autoencoder from DCEC article with Batch Norms and Leaky ReLUs
 class CAE_bn3(nn.Module):
-    def __init__(self, input_shape=[128,128,3], num_clusters=10, filters=[32, 64, 128], leaky=True, neg_slope=0.01, activations=False, bias=True):
+    def __init__(self, input_shape=[128,128,3], num_clusters=10, filters=[32, 64, 128], leaky=True, neg_slope=0.01, activations=False, bias=True, l2_norm=True):
         super(CAE_bn3, self).__init__()
+        self.l2_norm = l2_norm
         self.activations=activations
         self.pretrained = False
         self.num_clusters = num_clusters
@@ -148,7 +152,9 @@ class CAE_bn3(nn.Module):
             x = self.sig(x)
         else:
             x = self.relu3_1(x)
-        x = x.view(x.size(0), -1)
+        x = x.view(x.shape[0], -1)
+        if self.l2_norm:
+            x = F.normalize(x, p=2, dim=1)
         x = self.embedding(x)
         extra_out = x
         clustering_out = self.clustering(x)
@@ -169,8 +175,9 @@ class CAE_bn3(nn.Module):
 
 # Convolutional autoencoder with 4 convolutional blocks
 class CAE_4(nn.Module):
-    def __init__(self, input_shape=[128,128,3], num_clusters=10, filters=[32, 64, 128, 256], leaky=True, neg_slope=0.01, activations=False, bias=True):
+    def __init__(self, input_shape=[128,128,3], num_clusters=10, filters=[32, 64, 128, 256], leaky=True, neg_slope=0.01, activations=False, bias=True, l2_norm=True):
         super(CAE_4, self).__init__()
+        self.l2_norm = l2_norm
         self.activations = activations
         self.pretrained = False
         self.num_clusters = num_clusters
@@ -227,7 +234,9 @@ class CAE_4(nn.Module):
             x = self.sig(x)
         else:
             x = self.relu4_1(x)
-        x = x.view(x.size(0), -1)
+        x = x.view(x.shape[0], -1)
+        if self.l2_norm:
+            x = F.normalize(x, p=2, dim=1)
         x = self.embedding(x)
         extra_out = x
         clustering_out = self.clustering(x)
@@ -247,8 +256,9 @@ class CAE_4(nn.Module):
 
 # Convolutional autoencoder with 4 convolutional blocks (BN version)
 class CAE_bn4(nn.Module):
-    def __init__(self, input_shape=[128,128,3], num_clusters=10, filters=[32, 64, 128, 256], leaky=True, neg_slope=0.01, activations=False, bias=True):
+    def __init__(self, input_shape=[128,128,3], num_clusters=10, filters=[32, 64, 128, 256], leaky=True, neg_slope=0.01, activations=False, bias=True, l2_norm=True):
         super(CAE_bn4, self).__init__()
+        self.l2_norm = l2_norm
         self.activations = activations
         self.pretrained = False
         self.num_clusters = num_clusters
@@ -314,7 +324,9 @@ class CAE_bn4(nn.Module):
             x = self.sig(x)
         else:
             x = self.relu4_1(x)
-        x = x.view(x.size(0), -1)
+        x = x.view(x.shape[0], -1)
+        if self.l2_norm:
+            x = F.normalize(x, p=2, dim=1)
         x = self.embedding(x)
         extra_out = x
         clustering_out = self.clustering(x)
@@ -338,8 +350,9 @@ class CAE_bn4(nn.Module):
 
 # Convolutional autoencoder with 5 convolutional blocks
 class CAE_5(nn.Module):
-    def __init__(self, input_shape=[128,128,3], num_clusters=10, filters=[32, 64, 128, 256, 512], leaky=True, neg_slope=0.01, activations=False, bias=True):
+    def __init__(self, input_shape=[128,128,3], num_clusters=10, filters=[32, 64, 128, 256, 512], leaky=True, neg_slope=0.01, activations=False, bias=True, l2_norm=True):
         super(CAE_5, self).__init__()
+        self.l2_norm=True
         self.activations = activations
         self.pretrained = False
         self.num_clusters = num_clusters
@@ -405,7 +418,9 @@ class CAE_5(nn.Module):
             x = self.sig(x)
         else:
             x = self.relu5_1(x)
-        x = x.view(x.size(0), -1)
+        x = x.view(x.shape[0], -1)
+        if self.l2_norm:
+            x = F.normalize(x, p=2, dim=1)
         x = self.embedding(x)
         extra_out = x
         clustering_out = self.clustering(x)
@@ -428,8 +443,9 @@ class CAE_5(nn.Module):
 
 # Convolutional autoencoder with 5 convolutional blocks (BN version)
 class CAE_bn5(nn.Module):
-    def __init__(self, input_shape=[128,128,3], num_clusters=10, filters=[32, 64, 128, 256, 512], leaky=True, neg_slope=0.01, activations=False, bias=True):
+    def __init__(self, input_shape=[128,128,3], num_clusters=10, filters=[32, 64, 128, 256, 512], leaky=True, neg_slope=0.01, activations=False, bias=True, l2_norm=True):
         super(CAE_bn5, self).__init__()
+        self.l2_norm = l2_norm
         self.activations = activations
         self.pretrained = False
         self.num_clusters = num_clusters
@@ -507,7 +523,9 @@ class CAE_bn5(nn.Module):
             x = self.sig(x)
         else:
             x = self.relu5_1(x)
-        x = x.view(x.size(0), -1)
+        x = x.view(x.shape[0], -1)
+        if self.l2_norm:
+            x = F.normalize(x, p=2, dim=1)
         x = self.embedding(x)
         extra_out = x
         clustering_out = self.clustering(x)
