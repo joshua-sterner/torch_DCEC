@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 import copy
 
 # Clustering layer definition (see DCEC article for equations)
