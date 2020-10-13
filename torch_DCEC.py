@@ -122,9 +122,12 @@ if __name__ == "__main__":
         if reports_list:
             for file in reports_list:
                 # print(file)
-                if fnmatch.fnmatch(file, model_name + '*'):
-                    idx = int(str(file)[-7:-4]) + 1
-                    break
+                try:
+                    if fnmatch.fnmatch(file, model_name + '*'):
+                        idx = int(str(file)[-7:-4]) + 1
+                        break
+                except:
+                    pass
         try:
             idx
         except NameError:
