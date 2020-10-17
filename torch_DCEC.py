@@ -76,7 +76,7 @@ if __name__ == "__main__":
     parser.add_argument('--gmm_max_iter', default=100, type=int)
     parser.add_argument('--train_init_clusters', default=False, type=str2bool, help='Initialize cluster centers at beginning of full training stage.')
     parser.add_argument('--usps_location', default='', type=str, help='The location in which usps_train.jf and usps_test.jf can be found.')
-    parser.add_argument('--zero_gamma_epochs', default=5, type=int, help='Sets gamma to zero for the first N epochs during the training stage.')
+    parser.add_argument('--zero_gamma_epochs', default=0, type=int, help='Sets gamma to zero for the first N epochs during the training stage.')
     parser.add_argument('--l2_norm', default=True, type=str2bool, help='Enables l2-normalization before the embedding layer in the model.')
     args = parser.parse_args()
     print(args)
