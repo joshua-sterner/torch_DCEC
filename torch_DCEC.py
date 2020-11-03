@@ -416,7 +416,7 @@ if __name__ == "__main__":
         model = training_functions.pretraining(model, dataloader, criteria[0], optimizers[1], schedulers[1], epochs, params)
         training_functions.init_clusters(f, model, dataloader, params)
     elif args.mode == 'init_clusters':
-        model.load_state_dict(torch.load(args.pretrained_net))
+        utils.load_pretrained_net(model, args.pretrained_net)
         training_functions.init_clusters(f, model, dataloader, params)
 
     # Save final model

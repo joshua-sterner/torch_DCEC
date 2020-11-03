@@ -44,7 +44,7 @@ def train_model(model, dataloader, criteria, optimizers, schedulers, num_epochs,
         model = pretrained_model
     else:
         try:
-            model.load_state_dict(torch.load(pretrained))
+            utils.load_pretrained_net(model, pretrained)
             utils.print_both(txt_file, 'Pretrained weights loaded from file: ' + str(pretrained))
         except:
             print("Couldn't load pretrained weights")

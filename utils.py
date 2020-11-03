@@ -40,3 +40,13 @@ class metrics:
         from scipy.optimize import linear_sum_assignment as linear_assignment
         row_ind, col_ind = linear_assignment(w.max() - w)
         return sum([w[row_ind[i], col_ind[i]] for i in range(len(row_ind))]) * 1.0 / labels_pred.size
+
+def load_pretrained_net(model, pretrained_net_path):
+    try:
+        model.load_state_dict(torch.load(pretrained_net_path))
+    except:
+        print('Unable to load {} into model.')
+        print(('This can be caused by a mismatch in the expected input' +
+              ' shape between models. Note that in this case the' + 
+              ' expected input shape is {}.').format(model.input_shape))
+        raise
