@@ -60,7 +60,7 @@ if __name__ == "__main__":
     parser.add_argument('--update_interval', default=80, type=int, help='update interval for target distribution')
     parser.add_argument('--tol', default=1e-2, type=float, help='stop criterium tolerance')
     parser.add_argument('--num_clusters', default=10, type=int, help='number of clusters')
-    parser.add_argument('--custom_img_size', default=[128, 128, 3], nargs=3, type=int, help='size of custom images')
+    parser.add_argument('--custom_img_size', nargs=3, type=int, help='size of custom images')
     parser.add_argument('--leaky', default=True, type=str2bool)
     parser.add_argument('--neg_slope', default=0.01, type=float)
     parser.add_argument('--activations', default=False, type=str2bool)
@@ -333,10 +333,10 @@ if __name__ == "__main__":
         utils.print_both(f, tmp)
 
         # Image size
-        custom_size = math.nan
-        custom_size = args.custom_img_size
-        if isinstance(custom_size, list):
-            img_size = custom_size
+        if args.custom_img_size is None or len(args.custom_img_size) != 3:
+            raise Exception('--custom_img_size is required when --dataset custom or --verification_dataset custom is specified.')
+
+        img_size = args.custom_img_size
 
         tmp = "Image size used:\t{0}x{1}".format(img_size[0], img_size[1])
         utils.print_both(f, tmp)
