@@ -20,6 +20,7 @@ if __name__ == "__main__":
     import nets
     import utils
     import training_functions
+    import PIL
     from tensorboardX import SummaryWriter
 
     # Translate string entries to bool for parser
@@ -346,8 +347,15 @@ if __name__ == "__main__":
                 transforms.ToTensor(),
             ])
 
+        # ImageFolder's default loader converts the input to RGB for some reason
+        def img_loader(path):
+            with open(path, 'rb') as f:
+                img = PIL.Image.open(f)
+                # copy is required because PIL.Image.open uses lazy loading
+                return img.copy()
+
         # Read data from selected folder and apply transformations
-        image_dataset = datasets.ImageFolder(data_dir, data_transforms)
+        image_dataset = datasets.ImageFolder(data_dir, data_transforms, loader=img_loader)
         # Prepare data for network: schuffle and arrange batches
         dataloader = torch.utils.data.DataLoader(image_dataset, batch_size=batch,
                                                       shuffle=False, num_workers=workers)
