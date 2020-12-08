@@ -65,17 +65,18 @@ def train_model(model, dataloader, criteria, optimizers, schedulers, num_epochs,
         writer.add_embedding(embedding, metadata=labels, global_step=0, label_img=label_img, tag='embedding_layer')
         writer.add_embedding(output_distribution, metadata=labels, global_step=0, label_img=label_img, tag='clustering_output')
     target_distribution = target(output_distribution)
-    nmi = utils.metrics.nmi(labels, preds_prev)
-    ari = utils.metrics.ari(labels, preds_prev)
-    acc = utils.metrics.acc(labels, preds_prev)
-    utils.print_both(txt_file,
-                     'NMI: {0:.5f}\tARI: {1:.5f}\tAcc {2:.5f}\n'.format(nmi, ari, acc))
+    if params['class_dependent_metrics']:
+        nmi = utils.metrics.nmi(labels, preds_prev)
+        ari = utils.metrics.ari(labels, preds_prev)
+        acc = utils.metrics.acc(labels, preds_prev)
+        utils.print_both(txt_file,
+                         'NMI: {0:.5f}\tARI: {1:.5f}\tAcc {2:.5f}\n'.format(nmi, ari, acc))
 
-    if board:
-        niter = 0
-        writer.add_scalar('/NMI', nmi, niter)
-        writer.add_scalar('/ARI', ari, niter)
-        writer.add_scalar('/Acc', acc, niter)
+        if board:
+            niter = 0
+            writer.add_scalar('/NMI', nmi, niter)
+            writer.add_scalar('/ARI', ari, niter)
+            writer.add_scalar('/Acc', acc, niter)
 
     update_iter = 1
     finished = False
@@ -116,17 +117,18 @@ def train_model(model, dataloader, criteria, optimizers, schedulers, num_epochs,
                     writer.add_embedding(output_distribution, metadata=labels, global_step=epoch, label_img=label_img, tag='clustering_output')
 
                 target_distribution = target(output_distribution)
-                nmi = utils.metrics.nmi(labels, preds)
-                ari = utils.metrics.ari(labels, preds)
-                acc = utils.metrics.acc(labels, preds)
-                utils.print_both(txt_file,
-                                 'NMI: {0:.5f}\tARI: {1:.5f}\tAcc {2:.5f}\t'.format(nmi, ari, acc))
-                if board:
-                    niter = update_iter
-                    writer.add_scalar('/NMI', nmi, niter)
-                    writer.add_scalar('/ARI', ari, niter)
-                    writer.add_scalar('/Acc', acc, niter)
-                    update_iter += 1
+                if params['class_dependent_metrics']:
+                    nmi = utils.metrics.nmi(labels, preds)
+                    ari = utils.metrics.ari(labels, preds)
+                    acc = utils.metrics.acc(labels, preds)
+                    utils.print_both(txt_file,
+                                     'NMI: {0:.5f}\tARI: {1:.5f}\tAcc {2:.5f}\t'.format(nmi, ari, acc))
+                    if board:
+                        niter = update_iter
+                        writer.add_scalar('/NMI', nmi, niter)
+                        writer.add_scalar('/ARI', ari, niter)
+                        writer.add_scalar('/Acc', acc, niter)
+                update_iter += 1
 
                 # check stop criterion
                 delta_label = np.sum(preds != preds_prev).astype(np.float32) / preds.shape[0]
@@ -218,19 +220,75 @@ def train_model(model, dataloader, criteria, optimizers, schedulers, num_epochs,
 
     model.eval()
     output_distribution, labels, preds, embedding, label_img = calculate_predictions(model, dataloader, params)
-    nmi = utils.metrics.nmi(labels, preds)
-    ari = utils.metrics.ari(labels, preds)
-    acc = utils.metrics.acc(labels, preds)
-    utils.print_both(txt_file,
-                     'NMI: {0:.5f}\tARI: {1:.5f}\tAcc {2:.5f}\t'.format(nmi, ari, acc))
-    if board:
-        writer.add_embedding(embedding, metadata=labels, global_step=num_epochs, label_img=label_img, tag='embedding_layer')
-        writer.add_embedding(output_distribution, metadata=labels, global_step=num_epochs, label_img=label_img, tag='clustering_output')
+    if params['class_dependent_metrics']:
+        nmi = utils.metrics.nmi(labels, preds)
+        ari = utils.metrics.ari(labels, preds)
+        acc = utils.metrics.acc(labels, preds)
+        utils.print_both(txt_file,
+                         'NMI: {0:.5f}\tARI: {1:.5f}\tAcc {2:.5f}\t'.format(nmi, ari, acc))
         niter = update_iter
         writer.add_scalar('/NMI', nmi, niter)
         writer.add_scalar('/ARI', ari, niter)
         writer.add_scalar('/Acc', acc, niter)
-        update_iter += 1
+    if board:
+        writer.add_embedding(embedding, metadata=labels, global_step=num_epochs, label_img=label_img, tag='embedding_layer')
+        writer.add_embedding(output_distribution, metadata=labels, global_step=num_epochs, label_img=label_img, tag='clustering_output')
+    if params['use_ssim']:
+        # masks out self-pairs -- including these would increase the
+        # average ssim for in-cluster pairs.
+        self_pair_mask = 1 - np.identity(len(preds))
+        total_sum_ssim_in = 0
+        total_num_pairs_in = 0
+        total_sum_ssim_out = 0
+        total_num_pairs_out = 0
+        
+        # x and y are used to select pairs from the SSIM matrix. Each element of
+        # x and y is a mask representing the images in (in the case of x) or out
+        # (in the case of y) of a cluster. These masks are 2-dimensional so that
+        # the transpose operation can be used.
+        #
+        # this will be 1 for each element predicted in class, 0 otherwise
+        x = np.zeros((params['num_clusters'], 1, len(preds)))
+        # this will be 0 for each element predicted in class, 1 otherwise
+        y = np.ones((params['num_clusters'], 1, len(preds)))
+
+        encountered_predictions = np.zeros(params['num_clusters'])
+        for i in range(len(preds)):
+            encountered_predictions[preds[i]] += 1
+            predicted_class_index = preds[i]
+            x[predicted_class_index][0][labels[i]] = 1
+            y[predicted_class_index][0][labels[i]] = 0
+        utils.print_both(txt_file, f'Predictions per cluster: {encountered_predictions}')
+        for i in range(params['num_clusters']):
+            if encountered_predictions[i] == 0:
+                utils.print_both(txt_file, f'WARNING: No inputs predicted to exist withing cluster {i}.')
+            # select in-cluster pairs
+            pairs_in_mask = x[i] * x[i].transpose() * self_pair_mask
+            pairs_in = params['ssim_matrix'] * pairs_in_mask
+            num_pairs_in = sum(sum(pairs_in_mask > 0))
+            # select pairs with one image in the cluster and one image not in the cluster
+            pairs_out_mask = x[i] * y[i].transpose() + x[i].transpose() * y[i]
+            pairs_out = params['ssim_matrix'] * pairs_out_mask
+            num_pairs_out = sum(sum(pairs_out_mask > 0))
+
+            sum_ssim_in = sum(sum(pairs_in))
+            sum_ssim_out = sum(sum(pairs_out))
+            avg_ssim_in = sum_ssim_in/num_pairs_in
+            avg_ssim_out = sum_ssim_out/num_pairs_out
+
+            total_sum_ssim_in += sum_ssim_in
+            total_sum_ssim_out += sum_ssim_out
+            total_num_pairs_in += num_pairs_in
+            total_num_pairs_out += num_pairs_out
+
+            utils.print_both(txt_file, f'Cluster {i}: Average SSIM (in cluster): {avg_ssim_in}')
+            utils.print_both(txt_file, f'Cluster {i}: Average SSIM (out cluster): {avg_ssim_out}')
+        total_avg_ssim_in = total_sum_ssim_in / total_num_pairs_in
+        total_avg_ssim_out = total_sum_ssim_out / total_num_pairs_out
+        utils.print_both(txt_file, f'SSIM (in cluster): {total_avg_ssim_in}')
+        utils.print_both(txt_file, f'SSIM (out cluster): {total_avg_ssim_out}')
+
+    update_iter += 1
 
 
     time_elapsed = time.time() - since
