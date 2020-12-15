@@ -7,21 +7,6 @@ class ToRGB:
             raise Exception('ToRGB expects a single-channel input.')
         return torch.cat((tensor, tensor, tensor))
 
-def load_ssim_matrix(filename):
-    matrix_fd = open(filename, 'r')
-    ssim_matrix_lines = matrix_fd.read().strip().split('\n')
-    file_count = len(ssim_matrix_lines) + 1
-    ssim_matrix = np.zeros((file_count, file_count))
-    for i in range(file_count - 1):
-        entries = ssim_matrix_lines[i].rstrip(',').split(',')
-        for j in range(len(entries)):
-            ssim_matrix[i][i+j+1] = float(entries[j])
-            ssim_matrix[i+j+1][i] = float(entries[j])
-        ssim_matrix[i][i] = 1
-    matrix_fd.close()
-    return ssim_matrix
-
-
 if __name__ == "__main__":
 
     import argparse
@@ -96,6 +81,8 @@ if __name__ == "__main__":
     parser.add_argument('--zero_gamma_epochs', default=0, type=int, help='Sets gamma to zero for the first N epochs during the training stage.')
     parser.add_argument('--l2_norm', default=True, type=str2bool, help='Enables l2-normalization before the embedding layer in the model.')
     parser.add_argument('--ssim_matrix', default='', type=str, help='SSIM Matrix file -- skip class-dependent metrics & use ssim instead')
+    parser.add_argument('--mse_matrix', default='', type=str, help='MSE Matrix file -- skip class-depenent metrics & use mean squared error instead.')
+    parser.add_argument('--DEC', default=False, type=str2bool, help='set reconstruction weight to 0.')
     args = parser.parse_args()
     print(args)
 
@@ -125,6 +112,7 @@ if __name__ == "__main__":
     params['cluster_init_method'] = args.cluster_init_method
     params['train_init_clusters'] = args.train_init_clusters
     params['zero_gamma_epochs'] = args.zero_gamma_epochs
+    params['DEC'] = args.DEC
 
     # Directories
     # Create directories structure
@@ -403,11 +391,17 @@ if __name__ == "__main__":
 
     params['class_dependent_metrics'] = True
     params['use_ssim'] = False
+    params['use_mse'] = False
     
     if args.ssim_matrix != '':
         params['use_ssim'] = True
         params['class_dependent_metrics'] = False
-        params['ssim_matrix'] = load_ssim_matrix(args.ssim_matrix)
+        params['ssim_matrix'] = utils.load_ssim_matrix(args.ssim_matrix)
+
+    if args.mse_matrix != '':
+        params['use_mse'] = True
+        params['class_dependent_metrics'] = False
+        params['mse_matrix'] = utils.load_mse_matrix(args.mse_matrix)
 
     # Evaluate the proper model
     to_eval = "nets." + model_name + "(img_size, num_clusters=num_clusters, leaky = args.leaky, neg_slope = args.neg_slope, l2_norm = args.l2_norm)"

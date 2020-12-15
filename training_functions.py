@@ -151,7 +151,10 @@ def train_model(model, dataloader, criteria, optimizers, schedulers, num_epochs,
                 outputs, clusters, _ = model(inputs)
                 loss_rec = criteria[0](outputs, inputs)
                 loss_clust = criteria[1](torch.log(clusters), tar_dist) / batch
-                loss = loss_rec + gamma*loss_clust
+                if (params['DEC']):
+                    loss = gamma*loss_clust
+                else:
+                    loss = loss_rec + gamma*loss_clust
                 loss.backward()
                 optimizers[0].step()
 
@@ -233,60 +236,72 @@ def train_model(model, dataloader, criteria, optimizers, schedulers, num_epochs,
     if board:
         writer.add_embedding(embedding, metadata=labels, global_step=num_epochs, label_img=label_img, tag='embedding_layer')
         writer.add_embedding(output_distribution, metadata=labels, global_step=num_epochs, label_img=label_img, tag='clustering_output')
+
+    log_func = lambda x: utils.print_both(txt_file, x)
+
     if params['use_ssim']:
-        # masks out self-pairs -- including these would increase the
-        # average ssim for in-cluster pairs.
-        self_pair_mask = 1 - np.identity(len(preds))
-        total_sum_ssim_in = 0
-        total_num_pairs_in = 0
-        total_sum_ssim_out = 0
-        total_num_pairs_out = 0
-        
-        # x and y are used to select pairs from the SSIM matrix. Each element of
-        # x and y is a mask representing the images in (in the case of x) or out
-        # (in the case of y) of a cluster. These masks are 2-dimensional so that
-        # the transpose operation can be used.
-        #
-        # this will be 1 for each element predicted in class, 0 otherwise
-        x = np.zeros((params['num_clusters'], 1, len(preds)))
-        # this will be 0 for each element predicted in class, 1 otherwise
-        y = np.ones((params['num_clusters'], 1, len(preds)))
+        ssim_metrics = utils.matrix_metrics(params['ssim_matrix'], params['num_clusters'], preds, labels)
+        utils.log_matrix_metrics(log_func, ssim_metrics, 'SSIM')
 
-        encountered_predictions = np.zeros(params['num_clusters'])
-        for i in range(len(preds)):
-            encountered_predictions[preds[i]] += 1
-            predicted_class_index = preds[i]
-            x[predicted_class_index][0][labels[i]] = 1
-            y[predicted_class_index][0][labels[i]] = 0
-        utils.print_both(txt_file, f'Predictions per cluster: {encountered_predictions}')
-        for i in range(params['num_clusters']):
-            if encountered_predictions[i] == 0:
-                utils.print_both(txt_file, f'WARNING: No inputs predicted to exist withing cluster {i}.')
-            # select in-cluster pairs
-            pairs_in_mask = x[i] * x[i].transpose() * self_pair_mask
-            pairs_in = params['ssim_matrix'] * pairs_in_mask
-            num_pairs_in = sum(sum(pairs_in_mask > 0))
-            # select pairs with one image in the cluster and one image not in the cluster
-            pairs_out_mask = x[i] * y[i].transpose() + x[i].transpose() * y[i]
-            pairs_out = params['ssim_matrix'] * pairs_out_mask
-            num_pairs_out = sum(sum(pairs_out_mask > 0))
+    if params['use_mse']:
+        mse_metrics = utils.matrix_metrics(params['mse_matrix'], params['num_clusters'], preds, labels)
+        utils.log_matrix_metrics(log_func, mse_metrics, 'MSE')
 
-            sum_ssim_in = sum(sum(pairs_in))
-            sum_ssim_out = sum(sum(pairs_out))
-            avg_ssim_in = sum_ssim_in/num_pairs_in
-            avg_ssim_out = sum_ssim_out/num_pairs_out
+    #if params['use_ssim']:
+    #    # masks out self-pairs -- including these would increase the
+    #    # average ssim for in-cluster pairs.
+    #    self_pair_mask = 1 - np.identity(len(preds))
+    #    total_sum_ssim_in = 0
+    #    total_num_pairs_in = 0
+    #    total_sum_ssim_out = 0
+    #    total_num_pairs_out = 0
+    #    
+    #    # x and y are used to select pairs from the matrix. Each element of
+    #    # x and y is a mask representing the images in (in the case of x) or out
+    #    # (in the case of y) of a cluster. These masks are 2-dimensional so that
+    #    # the transpose operation can be used.
+    #    #
+    #    # this will be 1 for each element predicted in class, 0 otherwise
+    #    x = np.zeros((params['num_clusters'], 1, len(preds)))
+    #    # this will be 0 for each element predicted in class, 1 otherwise
+    #    y = np.ones((params['num_clusters'], 1, len(preds)))
 
-            total_sum_ssim_in += sum_ssim_in
-            total_sum_ssim_out += sum_ssim_out
-            total_num_pairs_in += num_pairs_in
-            total_num_pairs_out += num_pairs_out
+    #    encountered_predictions = np.zeros(params['num_clusters'])
+    #    for i in range(len(preds)):
+    #        encountered_predictions[preds[i]] += 1
+    #        predicted_class_index = preds[i]
+    #        x[predicted_class_index][0][labels[i]] = 1
+    #        y[predicted_class_index][0][labels[i]] = 0
+    #    utils.print_both(txt_file, f'Predictions per cluster: {encountered_predictions}')
+    #    for i in range(params['num_clusters']):
+    #        if encountered_predictions[i] == 0:
+    #            utils.print_both(txt_file, f'WARNING: No inputs predicted to exist withing cluster {i}.')
+    #        # select in-cluster pairs
+    #        pairs_in_mask = x[i] * x[i].transpose() * self_pair_mask
+    #        pairs_in = params['ssim_matrix'] * pairs_in_mask
+    #        num_pairs_in = sum(sum(pairs_in_mask > 0))
+    #        # select pairs with one image in the cluster and one image not in the cluster
+    #        pairs_out_mask = x[i] * y[i].transpose() + x[i].transpose() * y[i]
+    #        pairs_out = params['ssim_matrix'] * pairs_out_mask
+    #        num_pairs_out = sum(sum(pairs_out_mask > 0))
 
-            utils.print_both(txt_file, f'Cluster {i}: Average SSIM (in cluster): {avg_ssim_in}')
-            utils.print_both(txt_file, f'Cluster {i}: Average SSIM (out cluster): {avg_ssim_out}')
-        total_avg_ssim_in = total_sum_ssim_in / total_num_pairs_in
-        total_avg_ssim_out = total_sum_ssim_out / total_num_pairs_out
-        utils.print_both(txt_file, f'SSIM (in cluster): {total_avg_ssim_in}')
-        utils.print_both(txt_file, f'SSIM (out cluster): {total_avg_ssim_out}')
+    #        sum_ssim_in = sum(sum(pairs_in))
+    #        sum_ssim_out = sum(sum(pairs_out))
+    #        avg_ssim_in = sum_ssim_in/num_pairs_in
+    #        avg_ssim_out = sum_ssim_out/num_pairs_out
+
+    #        total_sum_ssim_in += sum_ssim_in
+    #        total_sum_ssim_out += sum_ssim_out
+    #        total_num_pairs_in += num_pairs_in
+    #        total_num_pairs_out += num_pairs_out
+
+    #        utils.print_both(txt_file, f'Cluster {i}: Average SSIM (in cluster): {avg_ssim_in}')
+    #        utils.print_both(txt_file, f'Cluster {i}: Average SSIM (out cluster): {avg_ssim_out}')
+    #    total_avg_ssim_in = total_sum_ssim_in / total_num_pairs_in
+    #    total_avg_ssim_out = total_sum_ssim_out / total_num_pairs_out
+    #    utils.print_both(txt_file, f'SSIM (in cluster): {total_avg_ssim_in}')
+    #    utils.print_both(txt_file, f'SSIM (out cluster): {total_avg_ssim_out}')
+
 
     update_iter += 1
 
@@ -439,8 +454,8 @@ def gmm(model, dataloader, params):
     model.clustering.set_weight(weights.to(params['device']))
 
 def can_use_label_img(inputs, data_loader):
-    if (inputs.size()[2] != inputs.size()[3]):
-        return False # label images must be square
+    #if (inputs.size()[2] != inputs.size()[3]):
+    #    return False # label images must be square
     # sqrt(num_images)*width must be <= 8192 according to tensorboardX documentation
     return math.sqrt(len(data_loader)*inputs.size()[2]*inputs.size()[2]) <= 8192
 
@@ -463,13 +478,21 @@ def calculate_predictions(model, dataloader, params):
             embedding_array = np.concatenate((embedding_array, embedding.cpu().detach().numpy()), 0)
             if use_label_img and can_use_label_img(inputs, dataloader):
                 label_img = np.concatenate((label_img, inputs.cpu().detach().numpy()), 0)
+                print(f'label_img.shape={label_img.shape}')
         else:
             output_array = outputs.cpu().detach().numpy()
             label_array = labels.cpu().detach().numpy()
             embedding_array = embedding.cpu().detach().numpy()
             if use_label_img and can_use_label_img(inputs, dataloader):
                 label_img = inputs.cpu().detach().numpy()
+                print(f'label_img.shape={label_img.shape}')
     preds = np.argmax(output_array.data, axis=1)
+    if (label_img is not None and label_img.shape[2] != label_img.shape[3]):
+        # pad with zeros so label_img is square (align to corner)
+        label_img_size = max(label_img.shape[2], label_img.shape[3])
+        label_img_square = np.zeros((label_img.shape[0], label_img.shape[1], label_img_size, label_img_size))
+        label_img_square[:, :, :label_img.shape[2], :label_img.shape[3]] = label_img
+        label_img = label_img_square
     return output_array, label_array, preds, embedding_array, label_img
 
 # Calculate target distribution
