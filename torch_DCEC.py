@@ -83,6 +83,8 @@ if __name__ == "__main__":
     parser.add_argument('--ssim_matrix', default='', type=str, help='SSIM Matrix file -- skip class-dependent metrics & use ssim instead')
     parser.add_argument('--mse_matrix', default='', type=str, help='MSE Matrix file -- skip class-depenent metrics & use mean squared error instead.')
     parser.add_argument('--DEC', default=False, type=str2bool, help='set reconstruction weight to 0.')
+    parser.add_argument('--optim', default='Adam', type=str, choices=['Adam', 'SGD'], help='The optimizer to use for training and pretraining.')
+    parser.add_argument('--momentum', default=0.9, type=float, help='The momentum to use when using the SGD optimizer.')
     args = parser.parse_args()
     print(args)
 
@@ -419,9 +421,14 @@ if __name__ == "__main__":
 
     criteria = [criterion_1, criterion_2]
 
-    optimizer = optim.Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=rate, weight_decay=weight)
-
-    optimizer_pretrain = optim.Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=rate_pretrain, weight_decay=weight_pretrain)
+    if args.optim == 'Adam':
+        optimizer = optim.Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=rate, weight_decay=weight)
+        optimizer_pretrain = optim.Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=rate_pretrain, weight_decay=weight_pretrain)
+    elif args.optim == 'SGD':
+        optimizer = optim.SGD(filter(lambda p: p.requires_grad, model.parameters()), lr=rate, momentum=args.momentum)
+        optimizer_pretrain = optim.SGD(filter(lambda p: p.requires_grad, model.parameters()), lr=rate_pretrain, momentum=0.9)
+    else:
+        raise Exception(f'Invalid optimizer {args.optim} selected.')
 
     optimizers = [optimizer, optimizer_pretrain]
 
