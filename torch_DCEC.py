@@ -79,7 +79,7 @@ if __name__ == "__main__":
     parser.add_argument('--train_init_clusters', default=False, type=str2bool, help='Initialize cluster centers at beginning of full training stage.')
     parser.add_argument('--usps_location', default='', type=str, help='The location in which usps_train.jf and usps_test.jf can be found.')
     parser.add_argument('--zero_gamma_epochs', default=0, type=int, help='Sets gamma to zero for the first N epochs during the training stage.')
-    parser.add_argument('--l2_norm', default=True, type=str2bool, help='Enables l2-normalization before the embedding layer in the model.')
+    parser.add_argument('--l2_norm', default=False, type=str2bool, help='Enables l2-normalization before the embedding layer in the model.')
     parser.add_argument('--ssim_matrix', default='', type=str, help='SSIM Matrix file -- skip class-dependent metrics & use ssim instead')
     parser.add_argument('--mse_matrix', default='', type=str, help='MSE Matrix file -- skip class-depenent metrics & use mean squared error instead.')
     parser.add_argument('--DEC', default=False, type=str2bool, help='set reconstruction weight to 0.')
